@@ -1,0 +1,9 @@
+pyramid==1.10
+pyramid-jinja2
+mysql-connector-python
+python-dotenv
+dronekit
+dronekit_sitl
+serial
+pyserial
+requests==2.18

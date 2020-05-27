@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <!-- Page Info -->
+    <title>Planner (beta)</title>
+    <meta name="author" content="Ming Liu">
+    <meta name="description" content="planner">
+
+    <link rel="stylesheet" type="text/css" href="Styles.css">
+
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Nova+Square" />
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@1,900&display=swap" rel="stylesheet">
+    <style>
+        #map {
+            height: 100%;
+        }
+
+        /* Optional: Makes the sample page fill the window. */
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body onload="start_page()"></body>
+
+<body>
+    <div class="navigation">
+        <a class="navigation dest logo" href="/"> FireWatch </a>
+        <a class="navigation dest register" href="/signup"> Register </a>
+        <a class="navigation dest" href="/pricing_model"> Pricing </a>
+        <a class="navigation dest" href="/about_us"> Our Team </a>
+        <a class="navigation dest" href="/product_features"> Features </a>
+        <a class="navigation dest" href="/metrics"> Metrics </a>
+
+        <a class="navigation dest selected" href="/planner"> Planner (beta) </a>
+    </div>
+    <h1 id="coordinate">Planner (beta) </h1>
+
+    <section class="grid">
+        <h4 id="map"> </h4>
+        <h4> First waypoint <br> <a id="first"> -- </a>
+
+            <br>
+            Second waypoint <br> <a id="second"> -- </a>
+            <br>
+
+
+            Third waypoint <br> <a id="third"> -- </a>
+            <br>
+            <button class="btn large launch" type="button" id="launch-button" onclick=final_launch()>Launch
+                Mission</button>
+            <button class="btn large" type="button" id="connect" onclick=connect()>Connect to Drone</button>
+            <button class="btn large" type="button" id="disconnect" onclick=disconnect()>Disconnect to
+                Drone</button>
+        </h4>
+    </section>
+
+    <script>
+        var map;
+        let marker_num = 0;
+        var marker_coords = [];
+        var marker_display = ["none", "first", "second", "third"];
+        var mark_icon = ["none", "1_icon.png", "2_icon.png", "3_icon.png"];
+        var connected_state = 0;
+        var drone_lat = 38.6449024;
+        var drone_long = -121.7389839;
+        var launch_status = 0;
+        var extra = 0;
+
+        //var drone_img = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif";
+        
+        var icon = {
+        url: "../res/sit_marron.png", // url
+        scaledSize: new google.maps.Size(20, 20), // scaled size
+        origin: new google.maps.Point(0,0), // origin
+        anchor: new google.maps.Point(0, 0) // anchor
+};
+
+
+
+
+        function start_page() {
+           
+            document.getElementById("launch-button").disabled = true;
+            document.getElementById("disconnect").disabled = true;
+            document.getElementById("connect").disabled = false;
+
+            console.log("refreshing start page");
+        }
+
+        function connect() { //138.68.225.57
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("coordinate").innerHTML = this.responseText;
+                    var response1 = JSON.parse(this.responseText);
+                    if (response1.Status == "Ready") {
+                        connected_state = 1;
+                        document.getElementById("coordinate").innerHTML = this.responseText;
+                        console.log("connect gotten");
+                        document.getElementById("disconnect").disabled = false;
+                        setInterval(get_position, 5000);
+                        
+                    }
+                }
+            };
+            xhttp.open("POST", "/connect", true);
+            xhttp.send();
+        }
+
+        function disconnect() {
+            connected_state = 0;
+            document.getElementById("connect").innerHTML = 'Connect to Drone';
+            document.getElementById("connect").disabled = false;
+             //138.68.225.57
+            var dis = new XMLHttpRequest();
+            dis.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    var response1 = JSON.parse(this.responseText);
+                }
+            };
+            dis.open("POST", "/disconnect", true);
+            dis.send();
+        
+        }
+
+        function get_position() {
+            console.log("TRYING POSITION")
+            if( connected_state == 1 && marker_num == 3){
+                document.getElementById("launch-button").disabled = false;
+            }
+            //if (connected_state == 1) {
+                console.log("GETTING POSITION")
+                var get_position = new XMLHttpRequest();
+                get_position.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        document.getElementById("connect").innerHTML = 'Connected!';
+                        document.getElementById("connect").disabled = true;
+                        var drone_pos = JSON.parse(this.responseText);
+                        drone_lat = drone_pos.lat;
+                        drone_long = drone_pos.long;
+                        drone_long = drone_long + extra;
+                        //extra = extra+0.0001;
+                        //curr_marker.setMap(null);
+                        console.log("got past assignmtn")
+                        droneSD = {"lat": drone_lat, "lng": drone_long}
+                        var curr_marker = new google.maps.Marker({
+                            position: droneSD,
+                            map: map,
+                            icon: icon
+                        });
+                        console.log("about to pan")
+                        map.panTo(droneSD)     
+                    }
+                };
+                get_position.open("POST", "/get_position", true);
+                get_position.send();
+            }
+        //}
+
+        function initMap() {
+
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 16,
+                center: { "lat": drone_lat, "lng": drone_long },
+                styles: [
+                    { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+                    { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+                    { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+                    {
+                        featureType: 'administrative.locality',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#d59563' }]
+                    },
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#d59563' }]
+                    },
+                    {
+                        featureType: 'poi.park',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#263c3f' }]
+                    },
+                    {
+                        featureType: 'poi.park',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#6b9a76' }]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#38414e' }]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'geometry.stroke',
+                        stylers: [{ color: '#212a37' }]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#9ca5b3' }]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#746855' }]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'geometry.stroke',
+                        stylers: [{ color: '#1f2835' }]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#f3d19c' }]
+                    },
+                    {
+                        featureType: 'transit',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#2f3948' }]
+                    },
+                    {
+                        featureType: 'transit.station',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#d59563' }]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#17263c' }]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#515c6d' }]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'labels.text.stroke',
+                        stylers: [{ color: '#17263c' }]
+                    }
+                ]
+
+
+
+            }
+
+            );
+
+
+            function deleteMarkers() {
+                //clearMarkers();
+                initMap();
+                btn_disabled();
+                //  marker.setMap(null);
+                
+                document.getElementById(marker_display[1]).innerHTML = "--";
+                document.getElementById(marker_display[2]).innerHTML = "--";
+                document.getElementById(marker_display[3]).innerHTML = "--";
+
+            }
+
+            map.addListener('click', function (event) {
+                if (connected_state == 1){
+                if (launch_status == 0){
+                ++marker_num;
+                if (marker_num > 3) {
+                    marker_num = 0;
+                    deleteMarkers();
+                }
+                placeMarkerAndPanTo(event.latLng, map);
+                marker_coords.push(event.latLng);
+                document.getElementById(marker_display[marker_num]).innerHTML = event.latLng;
+                }
+            }});
+
+
+
+            ////////////
+        }
+
+        function placeMarkerAndPanTo(latLng, map) {
+            var marker = new google.maps.Marker({
+                position: latLng,
+                map: map,
+                icon: { url: mark_icon[marker_num], scaledSize: new google.maps.Size(30, 30) }
+            });
+           // map.panTo(latLng);
+        }
+        
+        function final_launch() {
+            launch_status = 1;
+            document.getElementById("launch-button").innerHTML = "Launched!";
+            var send_stuff = marker_coords.toString();
+            var post_thing = new XMLHttpRequest();
+            post_thing.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("coordinate").innerHTML = this.responseText;
+                    var response1 = JSON.parse(this.responseText);
+                }
+            };
+            post_thing.open("POST", "/launch_command", true);
+            post_thing.send(send_stuff);
+
+        }
+        // Shows any markers currently in the array.
+
+
+
+
+
+
+
+/////////////////////////////////
+
+///////////////////////////////
+
+    </script>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBmdR6qGw3xWKJoqo1LviAVgl50sTcWfBA&callback=initMap">
+        </script>
+</body>
+
+</html>
