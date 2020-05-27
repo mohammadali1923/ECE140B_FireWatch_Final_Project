@@ -6,4 +6,4 @@ dronekit
 dronekit_sitl
 serial
 pyserial
-requests==2.18
+requests==2.20.0
